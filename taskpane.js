@@ -1,6 +1,6 @@
-/* Werkbad KI-Entwurf – Outlook Task Pane
- * Liest die geöffnete E-Mail, sendet sie an den Make-Webhook und zeigt den Entwurf an.
- * Sendet nie selbst eine E-Mail. "Als Antwort öffnen" öffnet nur das Antwortfenster.
+/* Werkbad AI Draft – Outlook task pane
+ * Reads the open email, sends it to the Make webhook and shows the draft.
+ * Never sends an email itself. "Open as reply" only opens the reply window.
  */
 (function () {
   "use strict";
@@ -49,7 +49,7 @@
   }
 
   async function sharedMailbox(item) {
-    // Gibt die Ziel-Postfachadresse zurück, wenn die Mail aus einem freigegebenen Postfach geöffnet wurde.
+    // Returns the target mailbox address when the email is opened from a shared mailbox.
     if (!item.getSharedPropertiesAsync || !Office.context.requirements.isSetSupported("Mailbox", "1.8")) return null;
     try {
       var p = await asPromise(function (cb) { item.getSharedPropertiesAsync(cb); });
@@ -65,7 +65,7 @@
     if (truncated) body = body.substring(0, max);
 
     var restId = null;
-    try { restId = Office.context.mailbox.convertToRestId(item.itemId, Office.MailboxEnums.RestVersion.v2_0); } catch (e) { /* älterer Client */ }
+    try { restId = Office.context.mailbox.convertToRestId(item.itemId, Office.MailboxEnums.RestVersion.v2_0); } catch (e) { /* older client */ }
 
     var target = await sharedMailbox(item);
     var profile = Office.context.mailbox.userProfile;
@@ -100,7 +100,7 @@
 
   async function callWebhook(payload) {
     var url = webhookUrl();
-    if (!url) throw new Error("Keine Webhook-URL eingestellt (Einstellungen unten).");
+    if (!url) throw new Error("No webhook URL set (see Settings below).");
     var ctrl = new AbortController();
     var timer = setTimeout(function () { ctrl.abort(); }, CFG.timeoutMs || 170000);
     try {
@@ -111,7 +111,7 @@
         signal: ctrl.signal
       });
       var text = await res.text();
-      if (!res.ok) throw new Error("Make antwortet mit " + res.status + ": " + text.substring(0, 300));
+      if (!res.ok) throw new Error("Make returned " + res.status + ": " + text.substring(0, 300));
       return text;
     } finally { clearTimeout(timer); }
   }
@@ -140,21 +140,21 @@
   function showResult(r) {
     var meta = $("meta");
     meta.innerHTML = "";
-    [["Thema", r.topic], ["Stufe", r.level], ["Sprache", r.language]].forEach(function (p) {
+    [["Topic", r.topic], ["Level", r.level], ["Language", r.language]].forEach(function (p) {
       if (!p[1]) return;
       var s = document.createElement("span");
-      s.className = "chip" + (p[0] === "Stufe" && String(p[1]).toUpperCase() === "C" ? " c" : "");
+      s.className = "chip" + (p[0] === "Level" && String(p[1]).toUpperCase() === "C" ? " c" : "");
       s.textContent = p[0] + ": " + p[1];
       meta.appendChild(s);
     });
     if (r.saved) {
       var s2 = document.createElement("span");
-      s2.className = "chip"; s2.textContent = "Entwurf in Outlook gespeichert";
+      s2.className = "chip"; s2.textContent = "Draft saved in Outlook";
       meta.appendChild(s2);
     }
     $("note").textContent = r.note || "";
     $("note").classList.toggle("hidden", !r.note);
-    $("internal").textContent = r.internal ? "Intern (nicht an Kunden): " + r.internal : "";
+    $("internal").textContent = r.internal ? "Internal (not for the customer): " + r.internal : "";
     $("internal").classList.toggle("hidden", !r.internal);
     $("draft").value = r.draft || "";
     $("result").classList.remove("hidden");
@@ -165,21 +165,21 @@
     busy = true;
     $("btnDraft").disabled = true;
     var st = $("status");
-    setStatus(st, "Entwurf wird vorbereitet … (bis zu 3 Minuten)");
+    setStatus(st, "Preparing draft … (up to 3 minutes)");
     try {
       var payload = await collectPayload();
       var text = await callWebhook(payload);
       var r = parseResponse(text);
       if (r.accepted) {
-        setStatus(st, "Make hat die Anfrage angenommen. Der Entwurf erscheint im Ordner Entwürfe.", "ok");
+        setStatus(st, "Make accepted the request. The draft will appear in the Drafts folder.", "ok");
       } else if (!r.draft) {
-        setStatus(st, "Make hat keinen Entwurf zurückgegeben.", "err");
+        setStatus(st, "Make returned no draft.", "err");
       } else {
         showResult(r);
-        setStatus(st, "Fertig. Bitte prüfen, bevor Sie antworten.", "ok");
+        setStatus(st, "Done. Please check the draft before you reply.", "ok");
       }
     } catch (e) {
-      var msg = e && e.name === "AbortError" ? "Zeitüberschreitung – bitte später im Ordner Entwürfe nachsehen." : (e && e.message) || String(e);
+      var msg = e && e.name === "AbortError" ? "Timeout – please check the Drafts folder later." : (e && e.message) || String(e);
       setStatus(st, msg, "err");
     } finally {
       busy = false;
@@ -190,7 +190,7 @@
   function openReply(all) {
     var html = textToHtml($("draft").value);
     var item = Office.context.mailbox.item;
-    // Öffnet nur das Antwortfenster mit vorausgefülltem Text. Gesendet wird manuell.
+    // Only opens the reply window with prefilled text. Sending is manual.
     if (all) item.displayReplyAllForm(html); else item.displayReplyForm(html);
   }
 
@@ -200,7 +200,7 @@
     var ok = false;
     try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
     if (!ok && navigator.clipboard) navigator.clipboard.writeText(ta.value);
-    setStatus($("status"), "In die Zwischenablage kopiert.", "ok");
+    setStatus($("status"), "Copied to clipboard.", "ok");
   }
 
   function saveSettings() {
@@ -208,7 +208,7 @@
     rs.set(SETTINGS_URL, $("cfgUrl").value.trim());
     rs.set(SETTINGS_TOKEN, $("cfgToken").value);
     rs.saveAsync(function (res) {
-      setStatus($("cfgStatus"), res.status === Office.AsyncResultStatus.Succeeded ? "Gespeichert." : "Speichern fehlgeschlagen.",
+      setStatus($("cfgStatus"), res.status === Office.AsyncResultStatus.Succeeded ? "Saved." : "Saving failed.",
         res.status === Office.AsyncResultStatus.Succeeded ? "ok" : "err");
     });
   }
@@ -216,10 +216,10 @@
   function renderItem() {
     var item = Office.context.mailbox.item;
     if (!item) return;
-    $("mailSubject").textContent = item.subject || "(ohne Betreff)";
+    $("mailSubject").textContent = item.subject || "(no subject)";
     var f = item.from;
     $("mailFrom").textContent = f ? (f.displayName + " <" + f.emailAddress + ">") : "–";
-    sharedMailbox(item).then(function (mb) { $("mailBox").textContent = mb ? "Postfach: " + mb : ""; });
+    sharedMailbox(item).then(function (mb) { $("mailBox").textContent = mb ? "Mailbox: " + mb : ""; });
     $("result").classList.add("hidden");
     $("hint").value = "";
     setStatus($("status"), "");
@@ -235,9 +235,9 @@
     $("btnCopy").addEventListener("click", copyDraft);
     $("btnSave").addEventListener("click", saveSettings);
     renderItem();
-    // Angeheftetes Fenster: bei Wechsel der E-Mail neu laden (Mailbox 1.5)
+    // Pinned pane: reload when the email changes (Mailbox 1.5)
     try {
       Office.context.mailbox.addHandlerAsync(Office.EventType.ItemChanged, renderItem);
-    } catch (e) { /* nicht unterstützt */ }
+    } catch (e) { /* not supported */ }
   });
 })();
