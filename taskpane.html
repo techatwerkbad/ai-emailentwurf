@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KI-Entwurf</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <script src="config.js"></script>
+  <link rel="stylesheet" href="taskpane.css">
+</head>
+<body>
+  <header>
+    <h1>KI-Entwurf</h1>
+    <p class="muted">Es wird nichts automatisch gesendet.</p>
+  </header>
+
+  <section id="mailInfo" class="card">
+    <div class="label">E-Mail</div>
+    <div id="mailSubject" class="strong">–</div>
+    <div id="mailFrom" class="muted">–</div>
+    <div id="mailBox" class="muted small"></div>
+  </section>
+
+  <section class="card">
+    <label for="hint" class="label">Hinweis für die KI (optional)</label>
+    <textarea id="hint" rows="3" placeholder="z. B. Liefertermin KW 48 erwähnen, kürzer antworten …"></textarea>
+    <button id="btnDraft" class="primary">Entwurf vorbereiten</button>
+    <div id="status" class="status" role="status" aria-live="polite"></div>
+  </section>
+
+  <section id="result" class="card hidden">
+    <div id="meta" class="meta"></div>
+    <div id="note" class="note hidden"></div>
+    <label for="draft" class="label">Entwurf</label>
+    <textarea id="draft" rows="14"></textarea>
+    <div class="row">
+      <button id="btnReply" class="primary">Als Antwort öffnen</button>
+      <button id="btnReplyAll">Allen antworten</button>
+      <button id="btnCopy">Kopieren</button>
+    </div>
+    <div id="internal" class="internal hidden"></div>
+  </section>
+
+  <details class="card">
+    <summary>Einstellungen</summary>
+    <label for="cfgUrl" class="label">Make Webhook URL</label>
+    <input id="cfgUrl" type="url" placeholder="https://hook.eu1.make.com/…">
+    <label for="cfgToken" class="label">Token (X-Token)</label>
+    <input id="cfgToken" type="password" autocomplete="off">
+    <button id="btnSave">Speichern</button>
+    <div id="cfgStatus" class="status"></div>
+  </details>
+
+  <script src="taskpane.js"></script>
+</body>
+</html>
