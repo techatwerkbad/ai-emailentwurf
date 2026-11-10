@@ -119,6 +119,8 @@
   function parseResponse(text) {
     var t = (text || "").trim();
     if (t === "Accepted") return { accepted: true };
+    // Tolerate a JSON answer wrapped in Markdown code fences.
+    t = t.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
     try {
       var j = JSON.parse(t);
       if (typeof j === "string") return { draft: j };
@@ -133,7 +135,7 @@
         saved: !!(j.draft_saved || j.draftSaved)
       };
     } catch (e) {
-      return { draft: t };
+      return { invalid: true, raw: t };
     }
   }
 
@@ -157,6 +159,8 @@
     $("internal").textContent = r.internal ? "Internal (not for the customer): " + r.internal : "";
     $("internal").classList.toggle("hidden", !r.internal);
     $("draft").value = r.draft || "";
+    var hasDraft = !!r.draft;
+    ["btnReply", "btnReplyAll", "btnCopy"].forEach(function (id) { $(id).disabled = !hasDraft; });
     $("result").classList.remove("hidden");
   }
 
@@ -171,7 +175,12 @@
       var text = await callWebhook(payload);
       var r = parseResponse(text);
       if (r.accepted) {
-        setStatus(st, "Make accepted the request. The draft will appear in the Drafts folder.", "ok");
+        setStatus(st, "Make did not finish in time. Please try again.", "err");
+      } else if (r.invalid) {
+        setStatus(st, "Make returned an invalid answer: " + r.raw.substring(0, 300), "err");
+      } else if (!r.draft && (r.topic || r.note)) {
+        showResult(r);
+        setStatus(st, "No customer reply proposed. Please read the note.", "ok");
       } else if (!r.draft) {
         setStatus(st, "Make returned no draft.", "err");
       } else {
@@ -179,7 +188,7 @@
         setStatus(st, "Done. Please check the draft before you reply.", "ok");
       }
     } catch (e) {
-      var msg = e && e.name === "AbortError" ? "Timeout – please check the Drafts folder later." : (e && e.message) || String(e);
+      var msg = e && e.name === "AbortError" ? "Timeout – Make did not answer within 3 minutes. Please try again." : (e && e.message) || String(e);
       setStatus(st, msg, "err");
     } finally {
       busy = false;
