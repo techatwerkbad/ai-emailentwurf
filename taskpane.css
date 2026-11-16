@@ -6,7 +6,7 @@ header h1 { font-size: 18px; margin: 0; color: #1f4e79; }
 .strong { font-weight: 600; word-break: break-word; }
 .card { background: #fff; border: 1px solid #dfe3e8; border-radius: 6px; padding: 10px; margin-top: 10px; }
 .label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; color: #5c6670; margin: 6px 0 4px; }
-textarea, input { width: 100%; font: inherit; padding: 6px; border: 1px solid #c8ced5; border-radius: 4px; background: #fff; color: #1f2328; }
+textarea, input, select { width: 100%; font: inherit; padding: 6px; border: 1px solid #c8ced5; border-radius: 4px; background: #fff; color: #1f2328; }
 textarea { resize: vertical; }
 button { font: inherit; padding: 6px 10px; border-radius: 4px; border: 1px solid #c8ced5; background: #fff; color: #1f2328; cursor: pointer; margin-top: 8px; }
 button.primary { background: #1f4e79; border-color: #1f4e79; color: #fff; }

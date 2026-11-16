@@ -8,6 +8,9 @@
   var CFG = window.WERKBAD_ADDIN_CONFIG || {};
   var SETTINGS_URL = "werkbadWebhookUrl";
   var SETTINGS_TOKEN = "werkbadToken";
+  var SETTINGS_URL_BADICUM = "werkbadWebhookUrlBadicum";
+  var BADICUM_DOMAINS = (CFG.badicumDomains && CFG.badicumDomains.length ? CFG.badicumDomains : ["badicum.de"])
+    .map(function (d) { return String(d).toLowerCase(); });
   var busy = false;
 
   function $(id) { return document.getElementById(id); }
@@ -25,6 +28,7 @@
   }
 
   function webhookUrl() { return getSetting(SETTINGS_URL, CFG.webhookUrl || ""); }
+  function badicumWebhookUrl() { return getSetting(SETTINGS_URL_BADICUM, CFG.badicumWebhookUrl || ""); }
   function token() { return getSetting(SETTINGS_TOKEN, CFG.token || ""); }
 
   function asPromise(fn) {
@@ -48,6 +52,28 @@
       escapeHtml(s).replace(/\r?\n/g, "<br>") + "</div>";
   }
 
+  function isBadicumAddress(email) {
+    var e = String(email || "").toLowerCase();
+    return BADICUM_DOMAINS.some(function (d) { return e.slice(-(d.length + 1)) === "@" + d; });
+  }
+
+  // Auto routing: Badicum when the mailbox or any To/Cc recipient is a Badicum address.
+  function detectAgent(mailbox, item) {
+    if (isBadicumAddress(mailbox)) return "badicum";
+    var rec = (item.to || []).concat(item.cc || []);
+    for (var i = 0; i < rec.length; i++) {
+      if (rec[i] && isBadicumAddress(rec[i].emailAddress)) return "badicum";
+    }
+    return "showers";
+  }
+
+  function chosenAgent(mailbox, item) {
+    var sel = $("agentSel").value;
+    return sel === "showers" || sel === "badicum" ? sel : detectAgent(mailbox, item);
+  }
+
+  function agentLabel(a) { return a === "badicum" ? "Badicum" : "Showers"; }
+
   async function sharedMailbox(item) {
     // Returns the target mailbox address when the email is opened from a shared mailbox.
     if (!item.getSharedPropertiesAsync || !Office.context.requirements.isSetSupported("Mailbox", "1.8")) return null;
@@ -69,14 +95,18 @@
 
     var target = await sharedMailbox(item);
     var profile = Office.context.mailbox.userProfile;
+    var mailbox = target || profile.emailAddress;
+    var agent = chosenAgent(mailbox, item);
 
     return {
       version: "1",
       action: "draft_reply",
       sentAt: new Date().toISOString(),
       user: { name: profile.displayName, email: profile.emailAddress },
-      mailbox: target || profile.emailAddress,
+      mailbox: mailbox,
       isSharedMailbox: !!target,
+      agent: agent,
+      agentMode: $("agentSel").value,
       hint: $("hint").value.trim(),
       message: {
         itemId: item.itemId,
@@ -99,8 +129,8 @@
   }
 
   async function callWebhook(payload) {
-    var url = webhookUrl();
-    if (!url) throw new Error("No webhook URL set (see Settings below).");
+    var url = payload.agent === "badicum" ? badicumWebhookUrl() : webhookUrl();
+    if (!url) throw new Error("No webhook URL set for " + agentLabel(payload.agent) + " (see Settings below).");
     var ctrl = new AbortController();
     var timer = setTimeout(function () { ctrl.abort(); }, CFG.timeoutMs || 170000);
     try {
@@ -172,6 +202,7 @@
     setStatus(st, "Preparing draft … (up to 3 minutes)");
     try {
       var payload = await collectPayload();
+      setStatus(st, "Preparing draft with " + agentLabel(payload.agent) + " agent … (up to 3 minutes)");
       var text = await callWebhook(payload);
       var r = parseResponse(text);
       if (r.accepted) {
@@ -215,6 +246,7 @@
   function saveSettings() {
     var rs = Office.context.roamingSettings;
     rs.set(SETTINGS_URL, $("cfgUrl").value.trim());
+    rs.set(SETTINGS_URL_BADICUM, $("cfgUrlBadicum").value.trim());
     rs.set(SETTINGS_TOKEN, $("cfgToken").value);
     rs.saveAsync(function (res) {
       setStatus($("cfgStatus"), res.status === Office.AsyncResultStatus.Succeeded ? "Saved." : "Saving failed.",
@@ -228,7 +260,12 @@
     $("mailSubject").textContent = item.subject || "(no subject)";
     var f = item.from;
     $("mailFrom").textContent = f ? (f.displayName + " <" + f.emailAddress + ">") : "–";
-    sharedMailbox(item).then(function (mb) { $("mailBox").textContent = mb ? "Mailbox: " + mb : ""; });
+    $("agentSel").value = "auto";
+    sharedMailbox(item).then(function (mb) {
+      $("mailBox").textContent = mb ? "Mailbox: " + mb : "";
+      var mailbox = mb || Office.context.mailbox.userProfile.emailAddress;
+      $("mailAgent").textContent = "Agent (auto): " + agentLabel(detectAgent(mailbox, item));
+    });
     $("result").classList.add("hidden");
     $("hint").value = "";
     setStatus($("status"), "");
@@ -237,6 +274,7 @@
   Office.onReady(function (info) {
     if (info.host !== Office.HostType.Outlook) return;
     $("cfgUrl").value = webhookUrl();
+    $("cfgUrlBadicum").value = badicumWebhookUrl();
     $("cfgToken").value = token();
     $("btnDraft").addEventListener("click", onDraft);
     $("btnReply").addEventListener("click", function () { openReply(false); });

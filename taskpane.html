@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AI Draft</title>
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
-  <script src="config.js?v=1.3"></script>
-  <link rel="stylesheet" href="taskpane.css?v=1.3">
+  <script src="config.js?v=1.4"></script>
+  <link rel="stylesheet" href="taskpane.css?v=1.4">
 </head>
 <body>
   <header>
@@ -20,9 +20,16 @@
     <div id="mailSubject" class="strong">–</div>
     <div id="mailFrom" class="muted">–</div>
     <div id="mailBox" class="muted small"></div>
+    <div id="mailAgent" class="muted small"></div>
   </section>
 
   <section class="card">
+    <label for="agentSel" class="label">Agent</label>
+    <select id="agentSel">
+      <option value="auto">Auto (by mailbox)</option>
+      <option value="showers">Showers</option>
+      <option value="badicum">Badicum</option>
+    </select>
     <label for="hint" class="label">Note for the AI (optional)</label>
     <textarea id="hint" rows="3" placeholder="e.g. delivery in week 48, order shipped today, keep it short …"></textarea>
     <button id="btnDraft" class="primary">Prepare draft</button>
@@ -44,14 +51,16 @@
 
   <details class="card">
     <summary>Settings</summary>
-    <label for="cfgUrl" class="label">Make Webhook URL</label>
+    <label for="cfgUrl" class="label">Make Webhook URL – Showers</label>
     <input id="cfgUrl" type="url" placeholder="https://hook.eu1.make.com/…">
+    <label for="cfgUrlBadicum" class="label">Make Webhook URL – Badicum</label>
+    <input id="cfgUrlBadicum" type="url" placeholder="https://hook.eu2.make.com/…">
     <label for="cfgToken" class="label">Token (X-Token)</label>
     <input id="cfgToken" type="password" autocomplete="off">
     <button id="btnSave">Save</button>
     <div id="cfgStatus" class="status"></div>
   </details>
 
-  <script src="taskpane.js?v=1.3"></script>
+  <script src="taskpane.js?v=1.4"></script>
 </body>
 </html>
